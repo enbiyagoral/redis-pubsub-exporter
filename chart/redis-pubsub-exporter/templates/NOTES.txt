@@ -1,0 +1,21 @@
+Redis PubSub Exporter has been deployed.
+
+  Metrics:  http://{{ include "redis-pubsub-exporter.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/metrics
+  Health:   http://{{ include "redis-pubsub-exporter.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/healthz
+  Ready:    http://{{ include "redis-pubsub-exporter.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/readyz
+
+{{- if .Values.serviceMonitor.enabled }}
+
+  ServiceMonitor is enabled — Prometheus Operator will auto-discover this exporter.
+{{- end }}
+
+{{- if .Values.prometheusRule.enabled }}
+
+  PrometheusRule is enabled — alerting rules are active.
+{{- end }}
+
+{{- if .Values.grafanaDashboard.enabled }}
+
+  Grafana dashboard ConfigMap is created. If your Grafana has the sidecar enabled,
+  the dashboard will be auto-provisioned.
+{{- end }}

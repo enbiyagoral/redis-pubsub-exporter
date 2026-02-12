@@ -1,0 +1,116 @@
+replicaCount: 1
+
+image:
+  repository: enbiyagoral/redis-pubsub-exporter
+  tag: ""  # defaults to appVersion
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: default-secret
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+
+securityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  tls: false
+  existingSecret: ""
+  existingSecretKeys:
+    host: redis-host
+    password: redis-password
+  password: ""
+
+exporter:
+  listenAddress: ":9123"
+  maxChannels: 500
+  knownPatterns: ""
+
+service:
+  type: ClusterIP
+  port: 9123
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  labels:
+    release: kube-prometheus-stack
+  namespaceSelector: {}
+
+prometheusRule:
+  enabled: true
+  labels:
+    release: kube-prometheus-stack
+  rules:
+    - alert: RedisPubSubOrphanChannel
+      expr: redis_pubsub_channel_subscriber_count == 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Redis Pub/Sub orphan channel detected"
+        description: "Channel {{ $labels.channel }} has no subscribers for more than 5 minutes."
+
+    - alert: RedisPubSubOrphanChannelsHigh
+      expr: redis_pubsub_orphan_channels_total > 5
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High number of orphan Pub/Sub channels"
+        description: "There are {{ $value }} channels with no subscribers."
+
+    - alert: RedisPubSubExporterDown
+      expr: up{job="redis-pubsub-exporter"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Redis PubSub Exporter is down"
+        description: "Redis PubSub Exporter has been down for more than 2 minutes."
+
+    - alert: RedisPubSubExporterScrapeErrors
+      expr: rate(redis_pubsub_exporter_scrape_errors_total[5m]) > 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Redis PubSub Exporter scrape errors"
+        description: "Exporter is experiencing scrape errors."
+
+grafanaDashboard:
+  enabled: true
+  labels:
+    grafana_dashboard: "1"

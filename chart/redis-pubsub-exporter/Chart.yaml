@@ -1,0 +1,17 @@
+apiVersion: v2
+name: redis-pubsub-exporter
+description: Prometheus exporter for Redis Pub/Sub channels, patterns, and client subscriptions
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - redis
+  - pubsub
+  - prometheus
+  - exporter
+  - monitoring
+home: https://github.com/your-org/redis-pubsub-exporter
+sources:
+  - https://github.com/your-org/redis-pubsub-exporter
+maintainers:
+  - name: valdor
