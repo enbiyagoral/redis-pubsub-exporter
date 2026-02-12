@@ -1,0 +1,6 @@
+dashboard.json
+.github/
+.goreleaser.yml
+*.md
+.git/
+.gitignore

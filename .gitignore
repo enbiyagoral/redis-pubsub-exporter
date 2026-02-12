@@ -1,0 +1,15 @@
+# Binary
+redis-pubsub-exporter
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Test
+coverage.out
+
+# Go
+vendor/

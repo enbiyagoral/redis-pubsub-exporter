@@ -1,0 +1,64 @@
+version: 2
+
+project_name: redis-pubsub-exporter
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - main: ./cmd/redis-pubsub-exporter
+    binary: redis-pubsub-exporter
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+dockers:
+  - image_templates:
+      - "enbiyagoral/redis-pubsub-exporter:{{ .Version }}-amd64"
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+    goarch: amd64
+  - image_templates:
+      - "enbiyagoral/redis-pubsub-exporter:{{ .Version }}-arm64"
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "enbiyagoral/redis-pubsub-exporter:{{ .Version }}"
+    image_templates:
+      - "enbiyagoral/redis-pubsub-exporter:{{ .Version }}-amd64"
+      - "enbiyagoral/redis-pubsub-exporter:{{ .Version }}-arm64"
+  - name_template: "enbiyagoral/redis-pubsub-exporter:latest"
+    image_templates:
+      - "enbiyagoral/redis-pubsub-exporter:{{ .Version }}-amd64"
+      - "enbiyagoral/redis-pubsub-exporter:{{ .Version }}-arm64"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
