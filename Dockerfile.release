@@ -1,0 +1,10 @@
+FROM alpine:latest AS certs
+RUN apk --no-cache add ca-certificates
+
+FROM scratch
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY redis-pubsub-exporter /redis-pubsub-exporter
+
+EXPOSE 9123
+USER 65534
+ENTRYPOINT ["/redis-pubsub-exporter"]

@@ -32,12 +32,14 @@ dockers:
   - image_templates:
       - "enbiyagoral/redis-pubsub-exporter:{{ .Version }}-amd64"
     use: buildx
+    dockerfile: Dockerfile.release
     build_flag_templates:
       - "--platform=linux/amd64"
     goarch: amd64
   - image_templates:
       - "enbiyagoral/redis-pubsub-exporter:{{ .Version }}-arm64"
     use: buildx
+    dockerfile: Dockerfile.release
     build_flag_templates:
       - "--platform=linux/arm64"
     goarch: arm64
