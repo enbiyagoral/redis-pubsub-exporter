@@ -10,9 +10,17 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/redis-pubsub-exporter/internal/config"
 )
 
 const namespace = "redis_pubsub"
+
+// hashMetricDesc pairs a config definition with its pre-built prometheus descriptor.
+type hashMetricDesc struct {
+	def  config.HashMetricDef
+	desc *prometheus.Desc
+}
 
 // RedisPubSubCollector implements prometheus.Collector.
 // It queries Redis on every Prometheus scrape and returns fresh metrics.
@@ -50,12 +58,28 @@ type RedisPubSubCollector struct {
 	scrapeDurationSeconds *prometheus.Desc
 	scrapeErrorsTotal     *prometheus.Desc
 
+	// Hash metrics (generic, user-configured)
+	hashMetrics []hashMetricDesc
+
 	// Internal counter for scrape errors (persists across scrapes)
 	scrapeErrors float64
 }
 
 // New creates a new RedisPubSubCollector.
-func New(client *redis.Client, maxChannels int, knownPatterns []string, logger *slog.Logger) *RedisPubSubCollector {
+func New(client *redis.Client, maxChannels int, knownPatterns []string, hashDefs []config.HashMetricDef, logger *slog.Logger) *RedisPubSubCollector {
+	// Build prometheus descriptors for each hash metric definition.
+	hashDescs := make([]hashMetricDesc, 0, len(hashDefs))
+	for _, def := range hashDefs {
+		hashDescs = append(hashDescs, hashMetricDesc{
+			def: def,
+			desc: prometheus.NewDesc(
+				namespace+"_"+def.MetricName,
+				def.Help,
+				[]string{def.FieldLabel}, nil,
+			),
+		})
+	}
+
 	return &RedisPubSubCollector{
 		client:        client,
 		maxChannels:   maxChannels,
@@ -136,6 +160,9 @@ func New(client *redis.Client, maxChannels int, knownPatterns []string, logger *
 			"Total number of scrape errors",
 			nil, nil,
 		),
+
+		// Hash metrics
+		hashMetrics: hashDescs,
 	}
 }
 
@@ -154,6 +181,9 @@ func (c *RedisPubSubCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.redisUsedMemoryBytes
 	ch <- c.scrapeDurationSeconds
 	ch <- c.scrapeErrorsTotal
+	for _, hm := range c.hashMetrics {
+		ch <- hm.desc
+	}
 }
 
 // Collect is called by Prometheus on each scrape.
@@ -272,7 +302,10 @@ func (c *RedisPubSubCollector) scrape(ctx context.Context, ch chan<- prometheus.
 		}
 	}
 
-	// 4. Pattern activity inference
+	// 4. Hash metrics (application-managed subscriber counts)
+	c.scrapeHashMetrics(ctx, ch)
+
+	// 5. Pattern activity inference
 	patternSet := make(map[string]struct{})
 	for _, p := range c.knownPatterns {
 		patternSet[p] = struct{}{}
@@ -319,4 +352,32 @@ func parseFloat(s string) float64 {
 	s = strings.TrimSpace(s)
 	f, _ := strconv.ParseFloat(s, 64)
 	return f
+}
+
+// scrapeHashMetrics reads each configured Redis hash and emits field values as gauges.
+// Individual hash failures are logged and skipped — they do not fail the overall scrape.
+func (c *RedisPubSubCollector) scrapeHashMetrics(ctx context.Context, ch chan<- prometheus.Metric) {
+	for _, hm := range c.hashMetrics {
+		result, err := c.client.HGetAll(ctx, hm.def.RedisKey).Result()
+		if err != nil {
+			c.logger.Warn("failed to read hash metric",
+				"redis_key", hm.def.RedisKey,
+				"error", err,
+			)
+			continue
+		}
+
+		for field, valStr := range result {
+			val, err := strconv.ParseFloat(strings.TrimSpace(valStr), 64)
+			if err != nil {
+				c.logger.Warn("hash metric field has non-numeric value, skipping",
+					"redis_key", hm.def.RedisKey,
+					"field", field,
+					"value", valStr,
+				)
+				continue
+			}
+			ch <- prometheus.MustNewConstMetric(hm.desc, prometheus.GaugeValue, val, field)
+		}
+	}
 }

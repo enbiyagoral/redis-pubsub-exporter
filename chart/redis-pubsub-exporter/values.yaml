@@ -44,6 +44,10 @@ exporter:
   listenAddress: ":9123"
   maxChannels: 500
   knownPatterns: ""
+  # Hash metrics: read Redis hashes and expose field values as Prometheus gauges.
+  # Format: semicolon-separated definitions, each with: redis_key, metric, help, label
+  # Example: "redis_key=myapp:stats,metric=active_count,help=Active count per item,label=item"
+  hashMetrics: ""
 
 service:
   type: ClusterIP

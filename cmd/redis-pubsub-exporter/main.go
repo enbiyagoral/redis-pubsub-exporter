@@ -83,7 +83,16 @@ func main() {
 		"listen", cfg.ListenAddress,
 		"max_channels", cfg.MaxChannels,
 		"known_patterns", cfg.KnownPatterns,
+		"hash_metrics", len(cfg.HashMetrics),
 	)
+
+	for _, hm := range cfg.HashMetrics {
+		logger.Info("hash metric configured",
+			"redis_key", hm.RedisKey,
+			"metric", hm.MetricName,
+			"label", hm.FieldLabel,
+		)
+	}
 
 	// Redis client
 	opts := &redis.Options{
@@ -103,7 +112,7 @@ func main() {
 	rdb := redis.NewClient(opts)
 
 	// Create and register collector
-	coll := collector.New(rdb, cfg.MaxChannels, cfg.KnownPatterns, logger)
+	coll := collector.New(rdb, cfg.MaxChannels, cfg.KnownPatterns, cfg.HashMetrics, logger)
 	prometheus.MustRegister(coll)
 
 	// Exporter build info

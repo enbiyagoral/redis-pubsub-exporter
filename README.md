@@ -7,6 +7,7 @@ Prometheus exporter for Redis Pub/Sub metrics. Monitors channels, patterns, and 
 - **Channel metrics** -- subscriber count per channel, orphan channel detection
 - **Pattern metrics** -- auto-discovers active patterns from channel naming conventions + explicit pattern list
 - **Client-level detail** -- per-client subscription counts via `CLIENT LIST` parsing
+- **Hash metrics** -- expose application-managed subscriber counts from Redis hashes as Prometheus gauges
 - **Redis health** -- connectivity, connected clients, memory usage
 - **Grafana dashboard** included (see `dashboard.json`)
 - **Prometheus alerting rules** included (see `manifest.yaml`)
@@ -50,6 +51,53 @@ On each scrape, the exporter:
 5. Queries `PUBSUB NUMPAT` for total pattern count
 6. Parses `CLIENT LIST` output for per-client subscription detail
 7. Discovers and queries patterns for activity data
+8. Reads configured Redis hashes (via `HASH_METRICS`) and emits field values as gauges
+
+## Hash Metrics
+
+Redis `PUBSUB NUMSUB` only reports the number of **Redis connections** subscribed to a channel. When a service multiplexes many clients over a single connection (e.g. WebSocket → Redis), `NUMSUB` always shows `1`.
+
+Hash metrics solve this by reading **application-managed** subscriber counts from Redis hashes and exposing them as Prometheus gauges.
+
+### Configuration
+
+Set the `HASH_METRICS` environment variable. Each definition is separated by `;`, fields by `,`:
+
+```bash
+HASH_METRICS="redis_key=<your-hash-key>,metric=<metric_name>,help=<description>,label=<label_name>"
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `redis_key` | Yes | Redis hash key to read |
+| `metric` | Yes | Prometheus metric name suffix (`redis_pubsub_` prefix added automatically) |
+| `label` | Yes | Label name for hash fields |
+| `help` | No | Metric HELP text (auto-generated if omitted) |
+
+### Example Output
+
+Given a Redis hash:
+```
+HSET myapp:active_users user-1 5 user-2 3 user-3 2
+```
+
+And configuration:
+```bash
+HASH_METRICS="redis_key=myapp:active_users,metric=active_user_count,help=Active user sessions,label=user"
+```
+
+The exporter produces:
+```
+redis_pubsub_active_user_count{user="user-1"} 5
+redis_pubsub_active_user_count{user="user-2"} 3
+redis_pubsub_active_user_count{user="user-3"} 2
+```
+
+### Multiple Hashes
+
+```bash
+HASH_METRICS="redis_key=app:subscribers,metric=subscriber_count,label=channel;redis_key=app:connections,metric=connection_count,label=service"
+```
 
 ## License
 

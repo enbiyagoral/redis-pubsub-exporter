@@ -71,6 +71,10 @@ spec:
             - name: KNOWN_PATTERNS
               value: {{ .Values.exporter.knownPatterns | quote }}
             {{- end }}
+            {{- if .Values.exporter.hashMetrics }}
+            - name: HASH_METRICS
+              value: {{ .Values.exporter.hashMetrics | quote }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
