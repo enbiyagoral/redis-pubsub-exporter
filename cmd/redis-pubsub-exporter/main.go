@@ -130,22 +130,22 @@ func main() {
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "ok")
+		_, _ = fmt.Fprint(w, "ok")
 	})
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
 		if coll.IsRedisUp() {
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, "ok")
+			_, _ = fmt.Fprint(w, "ok")
 		} else {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprint(w, "redis not reachable")
+			_, _ = fmt.Fprint(w, "redis not reachable")
 		}
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(w, `<html>
+		_, _ = fmt.Fprintf(w, `<html>
 <head><title>Redis PubSub Exporter</title></head>
 <body>
 <h1>Redis PubSub Exporter</h1>
